@@ -11,7 +11,7 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic&display=swap" rel="stylesheet" />
   <style>
-    /* 기존 스타일 그대로 유지 */
+    /* 스타일은 기존 그대로 유지 */
     body {
       font-family: 'Nanum Gothic', sans-serif;
       background: #fff0f5;
@@ -130,7 +130,6 @@
       padding: 8px 12px;
       font-size: 0.9em;
     }
-    /* 별점 스타일 */
     .star-rating {
       display: flex;
       font-size: 26px;
@@ -256,9 +255,16 @@
         places: [],
         editIndex: null
       },
-      mounted() {
-        this.loadRegions();
-        this.loadPlaces();
+      async mounted() {
+        await this.loadRegions();
+
+        // localStorage에서 선택값 불러오기
+        this.selectedMainRegion = localStorage.getItem('selectedMainRegion') || null;
+        this.selectedSubRegion = localStorage.getItem('selectedSubRegion') || null;
+
+        if (this.selectedMainRegion && this.selectedSubRegion) {
+          await this.loadPlaces();
+        }
       },
       methods: {
         // Firestore에 저장된 regions 불러오기
@@ -267,9 +273,8 @@
             const doc = await db.collection('metadata').doc('regions').get();
             if (doc.exists) {
               this.regions = doc.data().regions || [];
-              // 선택된 지역은 localStorage에서 가져오기
-              this.selectedMainRegion = localStorage.getItem('selectedMainRegion') || null;
-              this.selectedSubRegion = localStorage.getItem('selectedSubRegion') || null;
+            } else {
+              this.regions = [];
             }
           } catch(e) {
             console.error('regions 로드 실패', e);
@@ -303,6 +308,7 @@
             this.places = q.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           } catch(e) {
             console.error('places 불러오기 실패', e);
+            this.places = [];
           }
         },
         async addMainRegion() {
