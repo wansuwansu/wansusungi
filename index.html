@@ -3,187 +3,73 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>완수♥성지 완성데이트</title>
+  <title>완수♥성지 완성데이트 (구글시트 연동)</title>
   <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic&display=swap" rel="stylesheet" />
   <style>
-    body {
-      font-family: 'Nanum Gothic', sans-serif;
-      background: #fff0f5;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-      color: #d63384;
-    }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    .region-list, .subregion-list {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 12px;
-      list-style: none;
-      padding: 0;
-      margin: 10px 0 20px;
-    }
-    .region-list > li, .subregion-list > li {
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: #ffe6f0;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .region-list > li.selected, .subregion-list > li.selected {
-      background-color: #ffb3d9;
-      font-weight: bold;
-    }
-    input[type="text"], textarea, input[type="date"] {
-      width: 100%;
-      padding: 8px;
-      margin: 8px 0;
-      box-sizing: border-box;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      font-size: 1em;
-    }
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
-    button {
-      background-color: #d63384;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 7px;
-      cursor: pointer;
-      font-size: 1em;
-      margin-top: 8px;
-    }
-    button:hover {
-      background-color: #b52a6a;
-    }
-    .record-list {
-      margin-top: 20px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 15px;
-    }
-    .record-card {
-      background: #ffe6f0;
-      border-radius: 10px;
-      padding: 15px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-      position: relative;
-    }
-    .record-card img {
-      max-width: 100%;
-      border-radius: 10px;
-      margin-top: 10px;
-    }
-    .record-card h3 {
-      margin: 0 0 5px 0;
-    }
-    .record-card button.delete-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: red;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 3px 7px;
-      cursor: pointer;
-      margin-left: 5px;
-    }
-    .record-card button.edit-btn {
-      position: absolute;
-      top: 8px;
-      right: 50px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 3px 7px;
-      cursor: pointer;
-    }
-    .edit-buttons {
-      margin-top: 10px;
-    }
-    .edit-buttons button {
-      margin-right: 10px;
-      padding: 8px 12px;
-      font-size: 0.9em;
-    }
-    /* 별점 스타일 */
-    .star-rating {
-      display: flex;
-      font-size: 26px;
-      margin: 8px 0;
-      cursor: pointer;
-    }
-    .star {
-      color: #ddd;
-      user-select: none;
-      margin-right: 5px;
-      transition: color 0.3s;
-    }
-    .star.filled {
-      color: #f39c12;
-    }
+    /* 기존 스타일 그대로 사용 가능 */
+    body { font-family: 'Nanum Gothic', sans-serif; background: #fff0f5; margin: 0; padding: 20px; }
+    h1 { text-align: center; color: #d63384; }
+    .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .region-list, .subregion-list { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; list-style: none; padding: 0; margin: 10px 0 20px; }
+    .region-list > li, .subregion-list > li { padding: 10px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffe6f0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .region-list > li.selected, .subregion-list > li.selected { background-color: #ffb3d9; font-weight: bold; }
+    input[type="text"], textarea, input[type="date"] { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; border-radius: 5px; border: 1px solid #ccc; font-size: 1em; }
+    textarea { resize: vertical; min-height: 80px; }
+    button { background-color: #d63384; color: white; border: none; padding: 10px 15px; border-radius: 7px; cursor: pointer; font-size: 1em; margin-top: 8px; }
+    button:hover { background-color: #b52a6a; }
+    .record-list { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+    .record-card { background: #ffe6f0; border-radius: 10px; padding: 15px; box-shadow: 0 0 8px rgba(0,0,0,0.1); position: relative; }
+    .record-card img { max-width: 100%; border-radius: 10px; margin-top: 10px; }
+    .record-card h3 { margin: 0 0 5px 0; }
+    .record-card button.delete-btn { position: absolute; top: 8px; right: 8px; background: red; color: white; border: none; border-radius: 5px; padding: 3px 7px; cursor: pointer; margin-left: 5px; }
+    .record-card button.edit-btn { position: absolute; top: 8px; right: 50px; background: #4CAF50; color: white; border: none; border-radius: 5px; padding: 3px 7px; cursor: pointer; }
+    .edit-buttons { margin-top: 10px; }
+    .edit-buttons button { margin-right: 10px; padding: 8px 12px; font-size: 0.9em; }
+    .star-rating { display: flex; font-size: 26px; margin: 8px 0; cursor: pointer; }
+    .star { color: #ddd; user-select: none; margin-right: 5px; transition: color 0.3s; }
+    .star.filled { color: #f39c12; }
   </style>
 </head>
 <body>
   <div id="app" class="container">
-    <h1>완수♥성지 완성데이트</h1>
+    <h1>완수♥성지 완성데이트 (구글시트 연동)</h1>
 
-    <!-- 메인 지역 -->
+    <!-- 메인 지역 직접 추가 -->
     <div>
       <input v-model="newMainRegion" placeholder="메인 지역 입력" @keyup.enter="addMainRegion" />
       <button @click="addMainRegion">메인 지역 추가</button>
     </div>
     <ul class="region-list">
-      <li v-for="(region, rIndex) in regions" :key="region.name" 
-          :class="{selected: selectedMainRegion === region.name}"
-          @click="selectMainRegion(region.name)">
-        {{ region.name }}
-        <button class="delete-btn" @click.stop="removeMainRegion(rIndex)">삭제</button>
+      <li v-for="(region, index) in mainRegions" :key="region"
+          :class="{selected: selectedMainRegion === region}"
+          @click="selectMainRegion(region)">
+        {{ region }}
+        <button class="delete-btn" @click.stop="removeMainRegion(region)">삭제</button>
       </li>
     </ul>
 
-    <!-- 세부 지역 -->
+    <!-- 세부 지역 직접 추가 -->
     <div v-if="selectedMainRegion">
       <h3>{{ selectedMainRegion }} 세부 지역</h3>
       <input v-model="newSubRegion" placeholder="세부 지역 입력" @keyup.enter="addSubRegion" />
       <button @click="addSubRegion">세부 지역 추가</button>
       <ul class="subregion-list">
-        <li v-for="(sub, sIndex) in getSubRegions()" :key="sub"
+        <li v-for="(sub, index) in subRegions" :key="sub"
             :class="{selected: selectedSubRegion === sub}"
             @click="selectSubRegion(sub)">
           {{ sub }}
-          <button class="delete-btn" @click.stop="removeSubRegion(sIndex)">삭제</button>
+          <button class="delete-btn" @click.stop="removeSubRegion(sub)">삭제</button>
         </li>
       </ul>
     </div>
 
-    <!-- 여행기록 추가 및 수정 -->
+    <!-- 여행 기록 추가/수정 -->
     <div v-if="selectedSubRegion" style="margin-top: 30px;">
       <h3>여행기록 {{ editIndex === null ? '추가' : '수정' }} - {{ selectedMainRegion }} / {{ selectedSubRegion }}</h3>
       <input type="text" v-model="newPlace.name" placeholder="여행지 이름 (예: 속초 영금정)" />
       <input type="date" v-model="newPlace.date" />
       <textarea v-model="newPlace.review" placeholder="한줄평 (예: 일출이 너무 예쁜 바닷가)"></textarea>
-
-      <!-- 별점 추가 -->
       <div class="star-rating">
         <span v-for="starNum in 5" :key="starNum" 
               class="star" 
@@ -193,7 +79,6 @@
           ★
         </span>
       </div>
-
       <input type="file" @change="onImageChange" accept="image/*" />
 
       <div class="edit-buttons">
@@ -205,12 +90,12 @@
       </div>
     </div>
 
-    <!-- 여행기록 목록 -->
+    <!-- 여행 기록 목록 -->
     <div class="record-list" v-if="places.length">
       <div class="record-card" v-for="(place, index) in places" :key="index">
         <button class="delete-btn" @click="deletePlace(index)">삭제</button>
         <button class="edit-btn" @click="editPlace(index)">수정</button>
-        <h3>📍 {{ place.name }}</h3>
+        <h3>📍 {{ place.placeName }}</h3>
         <p>– 가본 날: {{ place.date }}</p>
         <p>– 한줄평: {{ place.review }}</p>
         <p>– 평점: <span style="color:#f39c12;">{{ place.rating }} ★</span></p>
@@ -220,147 +105,213 @@
   </div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbx7a4rQkEsmDowZPe73R6KL9KRmHIbCHU8dPL002v17m8-ehwzBsE3jKCMThcKAxsPD/exec'; // 3단계에서 배포한 URL
-
     new Vue({
       el: '#app',
       data: {
-        regions: [],
-        newMainRegion: '',
+        googleSheetUrl: "https://script.google.com/macros/s/AKfycbx7a4rQkEsmDowZPe73R6KL9KRmHIbCHU8dPL002v17m8-ehwzBsE3jKCMThcKAxsPD/exec",  // 여기에 배포한 앱스스크립트 URL 넣으세요
+        allRecords: [],
+
+        mainRegions: [],
         selectedMainRegion: null,
-        newSubRegion: '',
+
+        subRegions: [],
         selectedSubRegion: null,
+
+        newMainRegion: "",
+        newSubRegion: "",
+
         newPlace: {
-          name: '',
-          date: '',
-          review: '',
-          imageUrl: '',
-          rating: 0 // 별점 추가
+          name: "",
+          date: "",
+          review: "",
+          imageUrl: "",
+          rating: 0,
         },
+
         places: [],
-        editIndex: null  // 수정 중인 기록 인덱스
+
+        editIndex: null,
       },
       mounted() {
-        this.loadData();
+        this.fetchData();
       },
       methods: {
-        async loadData() {
+        async fetchData() {
           try {
-            const res = await fetch(API_URL);
-            const rows = await res.json();
+            const res = await fetch(this.googleSheetUrl);
+            const data = await res.json();
 
-            // 시트 데이터 행은 [날짜, 여행지, 한줄평, 별점, 사진 URL, 고유 ID] 배열로 넘어옴
-            // regions, subregions, places 재구성
-            // 간단히 places만 저장. 지역 분류는 places에서 추출할 수 있음.
+            this.allRecords = data;
 
-            const dataPlaces = rows.slice(1).map(row => ({
-              date: row[0],
-              name: row[1],
-              review: row[2],
-              rating: Number(row[3]) || 0,
-              imageUrl: row[4],
-              region: null, // 지역 구분은 저장 안 되어 있어 추후 추가 필요
-              subregion: null
-            }));
+            this.refreshRegions();
+            this.refreshPlaces();
 
-            this.places = dataPlaces;
-            // 지역과 세부지역 목록을 간단히 재구성 (중복 제거)
-            const regionsSet = new Set();
-            const subregionsSet = new Set();
+          } catch (e) {
+            alert("데이터를 불러오는 중 오류가 발생했습니다.");
+            console.error(e);
+          }
+        },
+        refreshRegions() {
+          // 중복 제거 후 mainRegions 세팅
+          const mainSet = new Set(this.allRecords.map(r => r.mainRegion));
+          this.mainRegions = Array.from(mainSet);
 
-            dataPlaces.forEach(p => {
-              // 이름을 "메인지역 / 세부지역 / 여행지" 형태로 관리했다면 아래처럼 파싱 가능
-              // 하지만 현재는 그냥 여행지 이름만 있으므로 별도 분리 불가
-              // 따라서 regions, subregions는 빈 배열로 초기화
-            });
+          // subRegions 갱신
+          if (this.selectedMainRegion) {
+            const subs = this.allRecords
+              .filter(r => r.mainRegion === this.selectedMainRegion)
+              .map(r => r.subRegion);
+            this.subRegions = Array.from(new Set(subs));
+          } else {
+            this.subRegions = [];
+          }
+        },
+        refreshPlaces() {
+          if (this.selectedMainRegion && this.selectedSubRegion) {
+            this.places = this.allRecords.filter(r =>
+              r.mainRegion === this.selectedMainRegion && r.subRegion === this.selectedSubRegion);
+          } else {
+            this.places = [];
+          }
+        },
+        addMainRegion() {
+          const name = this.newMainRegion.trim();
+          if (!name) return alert("메인 지역 이름을 입력하세요.");
+          if (this.mainRegions.includes(name)) return alert("이미 존재하는 메인 지역입니다.");
+          this.mainRegions.push(name);
+          this.newMainRegion = "";
+          this.selectedMainRegion = name;
+          this.subRegions = [];
+          this.selectedSubRegion = null;
+          this.places = [];
+        },
+        removeMainRegion(name) {
+          if (!confirm(`메인 지역 "${name}" 을(를) 삭제하면 관련 세부지역과 여행 기록도 사라집니다. 계속하시겠습니까?`)) return;
 
-            this.regions = []; 
+          // allRecords에서 해당 mainRegion 레코드 제거
+          this.allRecords = this.allRecords.filter(r => r.mainRegion !== name);
+          this.refreshRegions();
+
+          if (this.selectedMainRegion === name) {
             this.selectedMainRegion = null;
             this.selectedSubRegion = null;
-
-          } catch(e) {
-            alert('데이터 불러오기 실패: ' + e.message);
+            this.places = [];
           }
-        },
-        async savePlaceToAPI(place) {
-          // 구글 앱스 스크립트 doPost 호출용
-          try {
-            const res = await fetch(API_URL, {
-              method: 'POST',
-              body: JSON.stringify({
-                date: place.date,
-                location: place.name,
-                comment: place.review,
-                rating: place.rating,
-                image: place.imageUrl
-              }),
-              headers: { 'Content-Type': 'application/json' }
-            });
-            if (!res.ok) throw new Error('서버 에러');
-            return true;
-          } catch (e) {
-            alert('저장 실패: ' + e.message);
-            return false;
-          }
-        },
 
-        addMainRegion() {
-          alert('현재 구글시트 연동 버전에서는 메인 지역 직접 추가는 지원하지 않습니다.');
+          // 구글 시트에 변경 저장하려면 별도 백엔드가 필요해서 로컬만 반영됨
+          alert("삭제 내용은 구글 시트에는 자동 반영되지 않습니다.");
         },
-        removeMainRegion() {
-          alert('현재 구글시트 연동 버전에서는 메인 지역 삭제는 지원하지 않습니다.');
-        },
-        selectMainRegion() {
-          alert('현재 구글시트 연동 버전에서는 메인 지역 선택 기능은 지원하지 않습니다.');
-        },
-        getSubRegions() {
-          return [];
+        selectMainRegion(name) {
+          if (this.selectedMainRegion === name) {
+            this.selectedMainRegion = null;
+            this.selectedSubRegion = null;
+            this.places = [];
+          } else {
+            this.selectedMainRegion = name;
+            this.selectedSubRegion = null;
+            this.refreshRegions();
+            this.places = [];
+          }
         },
         addSubRegion() {
-          alert('현재 구글시트 연동 버전에서는 세부 지역 추가 기능은 지원하지 않습니다.');
+          const name = this.newSubRegion.trim();
+          if (!name) return alert("세부 지역 이름을 입력하세요.");
+          if (this.subRegions.includes(name)) return alert("이미 존재하는 세부 지역입니다.");
+          this.subRegions.push(name);
+          this.newSubRegion = "";
+          this.selectedSubRegion = name;
+          this.places = [];
         },
-        removeSubRegion() {
-          alert('현재 구글시트 연동 버전에서는 세부 지역 삭제 기능은 지원하지 않습니다.');
-        },
-        selectSubRegion() {
-          alert('현재 구글시트 연동 버전에서는 세부 지역 선택 기능은 지원하지 않습니다.');
-        },
+        removeSubRegion(name) {
+          if (!confirm(`세부 지역 "${name}" 을(를) 삭제하면 관련 여행 기록도 사라집니다. 계속하시겠습니까?`)) return;
 
+          this.allRecords = this.allRecords.filter(r =>
+            !(r.mainRegion === this.selectedMainRegion && r.subRegion === name));
+          this.refreshRegions();
+
+          if (this.selectedSubRegion === name) {
+            this.selectedSubRegion = null;
+            this.places = [];
+          }
+
+          alert("삭제 내용은 구글 시트에는 자동 반영되지 않습니다.");
+        },
+        selectSubRegion(name) {
+          if (this.selectedSubRegion === name) {
+            this.selectedSubRegion = null;
+            this.places = [];
+          } else {
+            this.selectedSubRegion = name;
+            this.refreshPlaces();
+          }
+        },
         onImageChange(event) {
           const file = event.target.files[0];
           if (!file) return;
           const reader = new FileReader();
-          reader.onload = (e) => {
+          reader.onload = e => {
             this.newPlace.imageUrl = e.target.result;
           };
           reader.readAsDataURL(file);
         },
-
         async addPlace() {
-          const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) {
-            return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-          }
-          // API 저장
-          const success = await this.savePlaceToAPI(this.newPlace);
-          if (success) {
-            alert('저장 성공! 새로고침 후 확인하세요.');
-            this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-            this.loadData();
+          const { name, date, review, rating, imageUrl } = this.newPlace;
+          if (!name || !date || !review || rating === 0) return alert("모든 필드를 입력해주세요. 별점도 꼭 선택해야 합니다.");
+          if (!this.selectedMainRegion || !this.selectedSubRegion) return alert("지역을 선택하세요.");
+
+          const newRecord = {
+            mainRegion: this.selectedMainRegion,
+            subRegion: this.selectedSubRegion,
+            placeName: name,
+            date,
+            review,
+            rating,
+            imageUrl
+          };
+
+          // 구글 시트 POST 요청
+          try {
+            const res = await fetch(this.googleSheetUrl, {
+              method: "POST",
+              body: JSON.stringify(newRecord),
+              headers: { "Content-Type": "application/json" }
+            });
+            const json = await res.json();
+            if (json.status === "success") {
+              alert("여행 기록이 저장되었습니다.");
+              this.newPlace = { name: "", date: "", review: "", imageUrl: "", rating: 0 };
+              await this.fetchData();
+            } else {
+              alert("저장 실패: " + json.message);
+            }
+          } catch (e) {
+            alert("서버와 통신 중 오류가 발생했습니다.");
+            console.error(e);
           }
         },
         deletePlace(index) {
-          alert('구글 스프레드시트 API에서는 삭제 기능이 별도로 구현되어 있지 않습니다.');
+          if (confirm("삭제 기능은 아직 구현되어 있지 않습니다.")) {
+            // 삭제 기능 추가하려면 앱스스크립트에서 지원 및 클라이언트 수정 필요
+          }
         },
         editPlace(index) {
-          alert('구글 스프레드시트 API에서는 수정 기능이 별도로 구현되어 있지 않습니다.');
+          const place = this.places[index];
+          this.newPlace = {
+            name: place.placeName,
+            date: place.date,
+            review: place.review,
+            imageUrl: place.imageUrl,
+            rating: place.rating,
+          };
+          this.editIndex = index;
         },
         updatePlace() {
-          alert('구글 스프레드시트 API에서는 수정 기능이 별도로 구현되어 있지 않습니다.');
+          alert("수정 기능은 아직 구현되어 있지 않습니다.");
+          // 수정 기능도 구현하려면 앱스스크립트 수정 필요
         },
         cancelEdit() {
           this.editIndex = null;
-          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+          this.newPlace = { name: "", date: "", review: "", imageUrl: "", rating: 0 };
         }
       }
     });
