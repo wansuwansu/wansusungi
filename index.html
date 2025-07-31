@@ -1,188 +1,144 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>완수♥성지 완성데이트</title>
-  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic&display=swap" rel="stylesheet" />
-  <style>
-    /* [생략된 기존 스타일 유지] */
-  </style>
-</head>
-<body>
-  <div id="app" class="container">
-    <!-- [생략된 기존 HTML 구조 - 동일 유지] -->
-  </div>
-
-  <!-- Firebase SDK 추가 -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDpg4cuUisMyaOUXI8Mcg6bPBUvMbKfv00",
-      authDomain: "wansu-e747d.firebaseapp.com",
-      projectId: "wansu-e747d",
-      storageBucket: "wansu-e747d.firebasestorage.app",
-      messagingSenderId: "634282664500",
-      appId: "1:634282664500:web:947e65d59a06dd9698a061",
-      measurementId: "G-JCDSG4XGN5"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-  </script>
-
-  <script>
-    new Vue({
-      el: '#app',
-      data: {
-        regions: [],
-        newMainRegion: '',
-        selectedMainRegion: null,
-        newSubRegion: '',
-        selectedSubRegion: null,
-        newPlace: {
-          name: '', date: '', review: '', imageUrl: '', rating: 0
-        },
-        places: [],
-        editIndex: null
-      },
-      mounted() {
-        const saved = localStorage.getItem('travelDataV2');
-        if (saved) {
-          const data = JSON.parse(saved);
-          this.regions = data.regions || [];
-          this.selectedMainRegion = data.selectedMainRegion || null;
-          this.selectedSubRegion = data.selectedSubRegion || null;
-          this.places = data.places || [];
-        }
-      },
-      watch: {
-        regions: { handler() { this.saveData(); }, deep: true },
-        selectedMainRegion() { this.saveData(); },
-        selectedSubRegion() { this.saveData(); },
-        places: { handler() { this.saveData(); }, deep: true }
-      },
-      methods: {
-        saveData() {
-          const data = {
-            regions: this.regions,
-            selectedMainRegion: this.selectedMainRegion,
-            selectedSubRegion: this.selectedSubRegion,
-            places: this.places
-          };
-          localStorage.setItem('travelDataV2', JSON.stringify(data));
-        },
-        addMainRegion() {
-          const name = this.newMainRegion.trim();
-          if (!name || this.regions.find(r => r.name === name)) return alert('중복된 지역 또는 빈 입력입니다.');
-          this.regions.push({ name, subregions: [] });
-          this.newMainRegion = '';
-        },
-        removeMainRegion(index) {
-          if (this.regions[index].name === this.selectedMainRegion) {
-            this.selectedMainRegion = null;
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-          }
-          this.regions.splice(index, 1);
-        },
-        selectMainRegion(name) {
-          if (this.selectedMainRegion === name) {
-            this.selectedMainRegion = null;
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-            return;
-          }
-          this.selectedMainRegion = name;
-          this.selectedSubRegion = null;
-          this.places = [];
-          this.editIndex = null;
-        },
-        getSubRegions() {
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          return region ? region.subregions : [];
-        },
-        addSubRegion() {
-          const name = this.newSubRegion.trim();
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          if (!name || region.subregions.includes(name)) return alert('중복된 세부 지역 또는 빈 입력입니다.');
-          region.subregions.push(name);
-          this.newSubRegion = '';
-        },
-        removeSubRegion(index) {
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          const removed = region.subregions.splice(index, 1);
-          if (this.selectedSubRegion === removed[0]) {
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-          }
-        },
-        selectSubRegion(name) {
-          if (this.selectedSubRegion === name) {
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-            return;
-          }
-          this.selectedSubRegion = name;
-          this.places = [];
-          this.editIndex = null;
-        },
-        onImageChange(event) {
-          const file = event.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            this.newPlace.imageUrl = e.target.result;
-          };
-          reader.readAsDataURL(file);
-        },
-        addPlace() {
-          const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-          const newRecord = {
-            ...this.newPlace,
-            mainRegion: this.selectedMainRegion,
-            subRegion: this.selectedSubRegion,
-            createdAt: new Date().toISOString()
-          };
-          this.places.unshift(newRecord);
-          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-
-          db.collection("travelRecords").add(newRecord)
-            .then(() => console.log("Firebase 저장 완료"))
-            .catch((error) => console.error("Firebase 저장 실패:", error));
-        },
-        deletePlace(index) {
-          if(this.editIndex === index) this.editIndex = null;
-          this.places.splice(index, 1);
-        },
-        editPlace(index) {
-          const place = this.places[index];
-          this.newPlace = { ...place };
-          this.editIndex = index;
-          this.$nextTick(() => {
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-          });
-        },
-        updatePlace() {
-          if (this.editIndex === null) return;
-          const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-          this.$set(this.places, this.editIndex, { ...this.newPlace });
-          this.editIndex = null;
-          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-        },
-        cancelEdit() {
-          this.editIndex = null;
-          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-        }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>완수 ♥ 성지 여행일기</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Nanum Gothic', sans-serif;
+        margin: 0;
+        background: #f5f5f5;
       }
-    });
-  </script>
-</body>
+      .app-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+      h1 {
+        text-align: center;
+        color: #444;
+      }
+      .entry-form, .entry-list {
+        background: white;
+        padding: 1rem;
+        border-radius: 1rem;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
+      }
+      input, textarea {
+        width: 100%;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 0.5rem;
+      }
+      button {
+        background-color: #ff7675;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      button:hover {
+        background-color: #d63031;
+      }
+      .entry {
+        background: #fafafa;
+        border: 1px solid #eee;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      .entry img {
+        max-width: 100%;
+        border-radius: 0.5rem;
+        margin-top: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="app-container">
+      <h1>📝 완수 ♥ 성지 여행일기</h1>
+      <div class="entry-form">
+        <input v-model="newEntry.title" placeholder="제목" />
+        <textarea v-model="newEntry.content" placeholder="내용"></textarea>
+        <input type="file" @change="handleFileUpload" accept="image/*" />
+        <button @click="saveEntry">저장하기</button>
+      </div>
+
+      <div class="entry-list">
+        <div v-for="entry in entries" :key="entry.timestamp" class="entry">
+          <h3>{{ entry.title }}</h3>
+          <p>{{ entry.content }}</p>
+          <img v-if="entry.image" :src="entry.image" />
+          <small>{{ new Date(entry.timestamp).toLocaleString() }}</small>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+      import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDpg4cuUisMyaOUXI8Mcg6bPBUvMbKfv00",
+        authDomain: "wansu-e747d.firebaseapp.com",
+        projectId: "wansu-e747d",
+        storageBucket: "wansu-e747d.appspot.com",
+        messagingSenderId: "634282664500",
+        appId: "1:634282664500:web:947e65d59a06dd9698a061",
+        measurementId: "G-JCDSG4XGN5"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      new Vue({
+        el: '#app',
+        data: {
+          newEntry: {
+            title: '',
+            content: '',
+            image: ''
+          },
+          entries: []
+        },
+        created() {
+          this.loadEntries();
+        },
+        methods: {
+          async saveEntry() {
+            const entry = {
+              ...this.newEntry,
+              timestamp: Date.now()
+            };
+            this.entries.unshift(entry);
+            await addDoc(collection(db, "entries"), entry);
+            this.newEntry.title = '';
+            this.newEntry.content = '';
+            this.newEntry.image = '';
+          },
+          async loadEntries() {
+            const querySnapshot = await getDocs(collection(db, "entries"));
+            this.entries = querySnapshot.docs.map(doc => doc.data()).sort((a, b) => b.timestamp - a.timestamp);
+          },
+          handleFileUpload(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = e => {
+              this.newEntry.image = e.target.result;
+            };
+            if (file) {
+              reader.readAsDataURL(file);
+            }
+          }
+        }
+      });
+    </script>
+  </body>
 </html>
