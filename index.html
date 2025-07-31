@@ -84,6 +84,7 @@
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
       import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+      import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-storage.js";
 
       const firebaseConfig = {
         apiKey: "AIzaSyDpg4cuUisMyaOUXI8Mcg6bPBUvMbKfv00",
@@ -97,6 +98,7 @@
 
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
+      const storage = getStorage(app);
 
       new Vue({
         el: '#app',
@@ -104,7 +106,8 @@
           newEntry: {
             title: '',
             content: '',
-            image: ''
+            image: '',
+            file: null
           },
           entries: []
         },
@@ -113,15 +116,25 @@
         },
         methods: {
           async saveEntry() {
+            const timestamp = Date.now();
+            let imageUrl = '';
+            if (this.newEntry.file) {
+              const imageRef = ref(storage, `images/${timestamp}.jpg`);
+              await uploadString(imageRef, this.newEntry.image, 'data_url');
+              imageUrl = await getDownloadURL(imageRef);
+            }
             const entry = {
-              ...this.newEntry,
-              timestamp: Date.now()
+              title: this.newEntry.title,
+              content: this.newEntry.content,
+              image: imageUrl,
+              timestamp
             };
             this.entries.unshift(entry);
             await addDoc(collection(db, "entries"), entry);
             this.newEntry.title = '';
             this.newEntry.content = '';
             this.newEntry.image = '';
+            this.newEntry.file = null;
           },
           async loadEntries() {
             const querySnapshot = await getDocs(collection(db, "entries"));
@@ -132,6 +145,7 @@
             const reader = new FileReader();
             reader.onload = e => {
               this.newEntry.image = e.target.result;
+              this.newEntry.file = file;
             };
             if (file) {
               reader.readAsDataURL(file);
