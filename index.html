@@ -220,6 +220,8 @@
   </div>
 
   <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbx7a4rQkEsmDowZPe73R6KL9KRmHIbCHU8dPL002v17m8-ehwzBsE3jKCMThcKAxsPD/exec'; // 3단계에서 배포한 URL
+
     new Vue({
       el: '#app',
       data: {
@@ -239,96 +241,91 @@
         editIndex: null  // 수정 중인 기록 인덱스
       },
       mounted() {
-        const saved = localStorage.getItem('travelDataV2');
-        if (saved) {
-          const data = JSON.parse(saved);
-          this.regions = data.regions || [];
-          this.selectedMainRegion = data.selectedMainRegion || null;
-          this.selectedSubRegion = data.selectedSubRegion || null;
-          this.places = data.places || [];
-        }
-      },
-      watch: {
-        regions: {
-          handler() { this.saveData(); },
-          deep: true
-        },
-        selectedMainRegion() { this.saveData(); },
-        selectedSubRegion() { this.saveData(); },
-        places: {
-          handler() { this.saveData(); },
-          deep: true
-        }
+        this.loadData();
       },
       methods: {
-        saveData() {
-          const data = {
-            regions: this.regions,
-            selectedMainRegion: this.selectedMainRegion,
-            selectedSubRegion: this.selectedSubRegion,
-            places: this.places
-          };
-          localStorage.setItem('travelDataV2', JSON.stringify(data));
+        async loadData() {
+          try {
+            const res = await fetch(API_URL);
+            const rows = await res.json();
+
+            // 시트 데이터 행은 [날짜, 여행지, 한줄평, 별점, 사진 URL, 고유 ID] 배열로 넘어옴
+            // regions, subregions, places 재구성
+            // 간단히 places만 저장. 지역 분류는 places에서 추출할 수 있음.
+
+            const dataPlaces = rows.slice(1).map(row => ({
+              date: row[0],
+              name: row[1],
+              review: row[2],
+              rating: Number(row[3]) || 0,
+              imageUrl: row[4],
+              region: null, // 지역 구분은 저장 안 되어 있어 추후 추가 필요
+              subregion: null
+            }));
+
+            this.places = dataPlaces;
+            // 지역과 세부지역 목록을 간단히 재구성 (중복 제거)
+            const regionsSet = new Set();
+            const subregionsSet = new Set();
+
+            dataPlaces.forEach(p => {
+              // 이름을 "메인지역 / 세부지역 / 여행지" 형태로 관리했다면 아래처럼 파싱 가능
+              // 하지만 현재는 그냥 여행지 이름만 있으므로 별도 분리 불가
+              // 따라서 regions, subregions는 빈 배열로 초기화
+            });
+
+            this.regions = []; 
+            this.selectedMainRegion = null;
+            this.selectedSubRegion = null;
+
+          } catch(e) {
+            alert('데이터 불러오기 실패: ' + e.message);
+          }
         },
+        async savePlaceToAPI(place) {
+          // 구글 앱스 스크립트 doPost 호출용
+          try {
+            const res = await fetch(API_URL, {
+              method: 'POST',
+              body: JSON.stringify({
+                date: place.date,
+                location: place.name,
+                comment: place.review,
+                rating: place.rating,
+                image: place.imageUrl
+              }),
+              headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error('서버 에러');
+            return true;
+          } catch (e) {
+            alert('저장 실패: ' + e.message);
+            return false;
+          }
+        },
+
         addMainRegion() {
-          const name = this.newMainRegion.trim();
-          if (!name || this.regions.find(r => r.name === name)) return alert('중복된 지역 또는 빈 입력입니다.');
-          this.regions.push({ name, subregions: [] });
-          this.newMainRegion = '';
+          alert('현재 구글시트 연동 버전에서는 메인 지역 직접 추가는 지원하지 않습니다.');
         },
-        removeMainRegion(index) {
-          if (this.regions[index].name === this.selectedMainRegion) {
-            this.selectedMainRegion = null;
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-          }
-          this.regions.splice(index, 1);
+        removeMainRegion() {
+          alert('현재 구글시트 연동 버전에서는 메인 지역 삭제는 지원하지 않습니다.');
         },
-        selectMainRegion(name) {
-          if (this.selectedMainRegion === name) {
-            this.selectedMainRegion = null;
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-            return;
-          }
-          this.selectedMainRegion = name;
-          this.selectedSubRegion = null;
-          this.places = [];
-          this.editIndex = null;
+        selectMainRegion() {
+          alert('현재 구글시트 연동 버전에서는 메인 지역 선택 기능은 지원하지 않습니다.');
         },
         getSubRegions() {
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          return region ? region.subregions : [];
+          return [];
         },
         addSubRegion() {
-          const name = this.newSubRegion.trim();
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          if (!name || region.subregions.includes(name)) return alert('중복된 세부 지역 또는 빈 입력입니다.');
-          region.subregions.push(name);
-          this.newSubRegion = '';
+          alert('현재 구글시트 연동 버전에서는 세부 지역 추가 기능은 지원하지 않습니다.');
         },
-        removeSubRegion(index) {
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          const removed = region.subregions.splice(index, 1);
-          if (this.selectedSubRegion === removed[0]) {
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-          }
+        removeSubRegion() {
+          alert('현재 구글시트 연동 버전에서는 세부 지역 삭제 기능은 지원하지 않습니다.');
         },
-        selectSubRegion(name) {
-          if (this.selectedSubRegion === name) {
-            this.selectedSubRegion = null;
-            this.places = [];
-            this.editIndex = null;
-            return;
-          }
-          this.selectedSubRegion = name;
-          this.places = [];
-          this.editIndex = null;
+        selectSubRegion() {
+          alert('현재 구글시트 연동 버전에서는 세부 지역 선택 기능은 지원하지 않습니다.');
         },
+
         onImageChange(event) {
           const file = event.target.files[0];
           if (!file) return;
@@ -338,31 +335,28 @@
           };
           reader.readAsDataURL(file);
         },
-        addPlace() {
+
+        async addPlace() {
           const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-          this.places.unshift({ ...this.newPlace });
-          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+          if (!name || !date || !review || rating === 0) {
+            return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
+          }
+          // API 저장
+          const success = await this.savePlaceToAPI(this.newPlace);
+          if (success) {
+            alert('저장 성공! 새로고침 후 확인하세요.');
+            this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+            this.loadData();
+          }
         },
         deletePlace(index) {
-          if(this.editIndex === index) this.editIndex = null;
-          this.places.splice(index, 1);
+          alert('구글 스프레드시트 API에서는 삭제 기능이 별도로 구현되어 있지 않습니다.');
         },
         editPlace(index) {
-          const place = this.places[index];
-          this.newPlace = { ...place };
-          this.editIndex = index;
-          this.$nextTick(() => {
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-          });
+          alert('구글 스프레드시트 API에서는 수정 기능이 별도로 구현되어 있지 않습니다.');
         },
         updatePlace() {
-          if (this.editIndex === null) return;
-          const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-          this.$set(this.places, this.editIndex, { ...this.newPlace });
-          this.editIndex = null;
-          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+          alert('구글 스프레드시트 API에서는 수정 기능이 별도로 구현되어 있지 않습니다.');
         },
         cancelEdit() {
           this.editIndex = null;
