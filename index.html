@@ -269,213 +269,191 @@
             const data = doc.data();
             this.regions = data.regions || [];
             this.places = data.places || [];
-            this.selectedMainRegion = data.selectedMainRegion || null;
-            this.selectedSubRegion = data.selectedSubRegion || null;
-          } else {
-            await userDataDocRef.set({
-              regions: [],
-              places: [],
-              selectedMainRegion: null,
-              selectedSubRegion: null
-            });
           }
-        } catch (error) {
-          console.error("데이터 로드 실패:", error);
+        } catch (err) {
+          console.error('데이터 불러오기 실패:', err);
         }
       },
-      watch: {
-        regions: { handler() { this.saveUserData(); }, deep: true },
-        places: { handler() { this.saveUserData(); }, deep: true },
-        selectedMainRegion() { this.saveUserData(); },
-        selectedSubRegion() { this.saveUserData(); }
-      },
       methods: {
-        async saveUserData() {
-          try {
-            await userDataDocRef.set({
-              regions: this.regions,
-              places: this.places,
-              selectedMainRegion: this.selectedMainRegion,
-              selectedSubRegion: this.selectedSubRegion
-            });
-          } catch (error) {
-            console.error("데이터 저장 실패:", error);
-            alert("데이터 저장 중 오류가 발생했습니다.");
-            throw error;
-          }
+        saveData() {
+          return userDataDocRef.set({
+            regions: this.regions,
+            places: this.places
+          });
         },
         addMainRegion() {
-          const name = this.newMainRegion.trim();
-          if (!name || this.regions.find(r => r.name === name)) {
-            alert('중복된 지역 또는 빈 입력입니다.');
+          if (!this.newMainRegion.trim()) return alert("메인 지역을 입력하세요.");
+          if (this.regions.find(r => r.name === this.newMainRegion.trim())) {
+            alert("이미 존재하는 메인 지역입니다.");
             return;
           }
-          this.regions.push({ name, subregions: [] });
+          this.regions.push({ name: this.newMainRegion.trim(), subRegions: [] });
           this.newMainRegion = '';
-          this.selectedMainRegion = name;
-          this.selectedSubRegion = null;
+          this.saveData();
         },
         removeMainRegion(index) {
-          if (this.regions[index].name === this.selectedMainRegion) {
-            this.selectedMainRegion = null;
-            this.selectedSubRegion = null;
-            this.editIndex = null;
+          if (confirm("메인 지역을 삭제하면 관련 세부 지역 및 여행 기록도 모두 삭제됩니다. 삭제할까요?")) {
+            const mainName = this.regions[index].name;
+            // 관련 여행 기록도 삭제
+            this.places = this.places.filter(p => p.mainRegion !== mainName);
+            this.regions.splice(index, 1);
+            if (this.selectedMainRegion === mainName) {
+              this.selectedMainRegion = null;
+              this.selectedSubRegion = null;
+            }
+            this.saveData();
           }
-          this.regions.splice(index, 1);
         },
         selectMainRegion(name) {
-          if (this.selectedMainRegion === name) {
-            this.selectedMainRegion = null;
-            this.selectedSubRegion = null;
-            this.editIndex = null;
-            return;
-          }
           this.selectedMainRegion = name;
           this.selectedSubRegion = null;
-          this.editIndex = null;
         },
         getSubRegions() {
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          return region ? region.subregions : [];
+          const main = this.regions.find(r => r.name === this.selectedMainRegion);
+          return main ? main.subRegions : [];
         },
         addSubRegion() {
-          const name = this.newSubRegion.trim();
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          if (!name || region.subregions.includes(name)) {
-            alert('중복된 세부 지역 또는 빈 입력입니다.');
+          if (!this.newSubRegion.trim()) return alert("세부 지역을 입력하세요.");
+          const main = this.regions.find(r => r.name === this.selectedMainRegion);
+          if (main.subRegions.includes(this.newSubRegion.trim())) {
+            alert("이미 존재하는 세부 지역입니다.");
             return;
           }
-          region.subregions.push(name);
+          main.subRegions.push(this.newSubRegion.trim());
           this.newSubRegion = '';
-          this.selectedSubRegion = name;
+          this.saveData();
         },
         removeSubRegion(index) {
-          const region = this.regions.find(r => r.name === this.selectedMainRegion);
-          const removed = region.subregions.splice(index, 1);
-          if (this.selectedSubRegion === removed[0]) {
-            this.selectedSubRegion = null;
-            this.editIndex = null;
+          if (confirm("세부 지역을 삭제하면 관련 여행 기록도 모두 삭제됩니다. 삭제할까요?")) {
+            const main = this.regions.find(r => r.name === this.selectedMainRegion);
+            const subName = main.subRegions[index];
+            this.places = this.places.filter(p => !(p.mainRegion === this.selectedMainRegion && p.subRegion === subName));
+            main.subRegions.splice(index, 1);
+            if (this.selectedSubRegion === subName) {
+              this.selectedSubRegion = null;
+            }
+            this.saveData();
           }
         },
-        selectSubRegion(name) {
-          if (this.selectedSubRegion === name) {
-            this.selectedSubRegion = null;
-            this.editIndex = null;
-            return;
+        onImageChange(e) {
+          const file = e.target.files[0];
+          if (file) {
+            this.selectedFile = file;
+          } else {
+            this.selectedFile = null;
           }
-          this.selectedSubRegion = name;
-          this.editIndex = null;
         },
-        onImageChange(event) {
-          this.selectedFile = event.target.files[0] || null;
-          console.log("Selected file:", this.selectedFile);
+        async uploadImage(file) {
+          if (!file) return null;
+          const fileExt = file.name.split('.').pop();
+          const storageRef = storage.ref().child(`images/${Date.now()}.${fileExt}`);
+          await storageRef.put(file);
+          const url = await storageRef.getDownloadURL();
+          return url;
+        },
+        clearFileInput() {
+          // input[type=file] 초기화
+          const fileInput = this.$el.querySelector('input[type="file"]');
+          if (fileInput) {
+            fileInput.value = '';
+          }
+          this.selectedFile = null;
         },
         async addPlace() {
-          if (this.uploading) return;
-          const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) {
-            alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-            return;
-          }
-          if (!this.selectedMainRegion || !this.selectedSubRegion) {
-            alert('지역을 선택해 주세요.');
-            return;
-          }
+          if (!this.newPlace.name.trim()) return alert("여행지 이름을 입력하세요.");
+          if (!this.newPlace.date) return alert("여행 날짜를 선택하세요.");
           this.uploading = true;
           try {
+            let imageUrl = "";
             if (this.selectedFile) {
-              console.log("Uploading file:", this.selectedFile.name);
-              const storageRef = storage.ref(`images/${Date.now()}_${this.selectedFile.name}`);
-              const snapshot = await storageRef.put(this.selectedFile);
-              console.log("Upload snapshot:", snapshot);
-              const downloadURL = await snapshot.ref.getDownloadURL();
-              console.log("Download URL:", downloadURL);
-              this.newPlace.imageUrl = downloadURL;
+              imageUrl = await this.uploadImage(this.selectedFile);
             }
             this.places.push({
-              ...this.newPlace,
+              id: Date.now().toString(),
               mainRegion: this.selectedMainRegion,
               subRegion: this.selectedSubRegion,
-              id: Date.now()
-            });
-            await this.saveUserData();
-            alert("저장 완료!");
-            this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-            this.selectedFile = null;
-            this.$el.querySelector('input[type="file"]').value = '';
-          } catch (error) {
-            console.error("저장 실패:", error);
-            alert("저장 중 오류가 발생했습니다.");
-          } finally {
-            this.uploading = false;
-          }
-        },
-        async updatePlace() {
-          if (this.uploading) return;
-          if (this.editIndex === null) return;
-          const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) {
-            alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-            return;
-          }
-          if (!this.selectedMainRegion || !this.selectedSubRegion) {
-            alert('지역을 선택해 주세요.');
-            return;
-          }
-          this.uploading = true;
-          try {
-            let imageUrl = this.newPlace.imageUrl || '';
-            if (this.selectedFile) {
-              console.log("Uploading file:", this.selectedFile.name);
-              const storageRef = storage.ref(`images/${Date.now()}_${this.selectedFile.name}`);
-              const snapshot = await storageRef.put(this.selectedFile);
-              console.log("Upload snapshot:", snapshot);
-              imageUrl = await snapshot.ref.getDownloadURL();
-              console.log("Download URL:", imageUrl);
-            }
-            const place = this.places[this.editIndex];
-            this.$set(this.places, this.editIndex, {
-              ...place,
-              name,
-              date,
-              review,
-              rating,
+              name: this.newPlace.name.trim(),
+              date: this.newPlace.date,
+              review: this.newPlace.review.trim(),
               imageUrl,
-              mainRegion: this.selectedMainRegion,
-              subRegion: this.selectedSubRegion
+              rating: this.newPlace.rating
             });
-            await this.saveUserData();
-            alert('수정 완료!');
-            this.editIndex = null;
-            this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-            this.selectedFile = null;
-            this.$el.querySelector('input[type="file"]').value = '';
-          } catch (error) {
-            alert('수정 실패: ' + error.message);
+            await this.saveData();
+            this.resetForm();
+          } catch (err) {
+            alert("저장 중 오류가 발생했습니다.");
+            console.error(err);
           } finally {
             this.uploading = false;
           }
-        },
-        deletePlace(index) {
-          if (!confirm('삭제하시겠습니까?')) return;
-          this.places.splice(index, 1);
-          this.saveUserData();
-          if (this.editIndex === index) this.cancelEdit();
         },
         editPlace(index) {
           const place = this.filteredPlaces[index];
-          const realIndex = this.places.findIndex(p => p.id === place.id);
-          this.editIndex = realIndex;
-          this.newPlace = { ...place };
+          this.editIndex = this.places.findIndex(p => p.id === place.id);
+          if (this.editIndex === -1) {
+            alert("수정할 여행기록을 찾을 수 없습니다.");
+            return;
+          }
+          const p = this.places[this.editIndex];
+          this.newPlace = {
+            name: p.name,
+            date: p.date,
+            review: p.review,
+            imageUrl: p.imageUrl,
+            rating: p.rating
+          };
           this.selectedFile = null;
-          this.$el.querySelector('input[type="file"]').value = '';
-           window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+          this.selectedMainRegion = p.mainRegion;
+          this.selectedSubRegion = p.subRegion;
+
+          // input[type=file] 초기화
+          this.clearFileInput();
+        },
+        async updatePlace() {
+          if (this.editIndex === null) return;
+          if (!this.newPlace.name.trim()) return alert("여행지 이름을 입력하세요.");
+          if (!this.newPlace.date) return alert("여행 날짜를 선택하세요.");
+          this.uploading = true;
+          try {
+            let imageUrl = this.places[this.editIndex].imageUrl || "";
+            if (this.selectedFile) {
+              imageUrl = await this.uploadImage(this.selectedFile);
+            }
+            this.$set(this.places, this.editIndex, {
+              ...this.places[this.editIndex],
+              name: this.newPlace.name.trim(),
+              date: this.newPlace.date,
+              review: this.newPlace.review.trim(),
+              imageUrl,
+              rating: this.newPlace.rating
+            });
+            await this.saveData();
+            this.resetForm();
+            this.editIndex = null;
+          } catch (err) {
+            alert("수정 중 오류가 발생했습니다.");
+            console.error(err);
+          } finally {
+            this.uploading = false;
+          }
         },
         cancelEdit() {
+          this.resetForm();
           this.editIndex = null;
+        },
+        deletePlace(index) {
+          if (confirm("이 여행 기록을 삭제할까요?")) {
+            const place = this.filteredPlaces[index];
+            const realIndex = this.places.findIndex(p => p.id === place.id);
+            if (realIndex !== -1) {
+              this.places.splice(realIndex, 1);
+              this.saveData();
+            }
+          }
+        },
+        resetForm() {
           this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-          this.selectedFile = null;
-          this.$el.querySelector('input[type="file"]').value = '';
+          this.clearFileInput();
         }
       }
     });
