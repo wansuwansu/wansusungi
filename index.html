@@ -196,13 +196,13 @@
               >★</span>
       </div>
 
-      <input type="file" @change="onFileSelected" accept="image/*" />
+      <input type="file" @change="onImageChange" accept="image/*" />
 
       <div class="edit-buttons">
         <button
           :disabled="uploading"
-          @click="editIndex === null ? savePlace() : updatePlace()">
-          {{ uploading ? '저장 중...' : (editIndex === null ? '저장하기' : '수정완료') }}
+          @click="editIndex === null ? addPlace() : updatePlace()">
+          {{ uploading ? (editIndex === null ? '저장 중...' : '수정 중...') : (editIndex === null ? '저장하기' : '수정완료') }}
         </button>
         <button v-if="editIndex !== null" @click="cancelEdit" style="background:#999; margin-left:10px;">취소</button>
       </div>
@@ -300,6 +300,8 @@
             });
           } catch (error) {
             console.error("데이터 저장 실패:", error);
+            alert("데이터 저장 중 오류가 발생했습니다.");
+            throw error;
           }
         },
         addMainRegion() {
@@ -364,16 +366,11 @@
           this.selectedSubRegion = name;
           this.editIndex = null;
         },
-        onFileSelected(event) {
-          const file = event.target.files[0];
-          if (file) {
-            this.selectedFile = file;
-          } else {
-            this.selectedFile = null;
-          }
+        onImageChange(event) {
+          this.selectedFile = event.target.files[0] || null;
         },
-        async savePlace() {
-          if (this.uploading) return; // 다중 클릭 방지
+        async addPlace() {
+          if (this.uploading) return;
           const { name, date, review, rating } = this.newPlace;
           if (!name || !date || !review || rating === 0) {
             alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
@@ -385,33 +382,26 @@
           }
           this.uploading = true;
           try {
-            let imageUrl = '';
             if (this.selectedFile) {
-              // 이미지 업로드
               const storageRef = storage.ref(`images/${Date.now()}_${this.selectedFile.name}`);
               const snapshot = await storageRef.put(this.selectedFile);
-              imageUrl = await snapshot.ref.getDownloadURL();
+              const downloadURL = await snapshot.ref.getDownloadURL();
+              this.newPlace.imageUrl = downloadURL;
             }
-            // 고유 id 생성
-            const id = 'place-' + Date.now();
             this.places.push({
-              id,
-              name,
-              date,
-              review,
-              imageUrl,
-              rating,
+              ...this.newPlace,
               mainRegion: this.selectedMainRegion,
-              subRegion: this.selectedSubRegion
+              subRegion: this.selectedSubRegion,
+              id: Date.now()
             });
-            alert('저장 완료!');
-            // 초기화
+            await this.saveUserData();
+            alert("저장 완료!");
             this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
             this.selectedFile = null;
-            // 파일 input 초기화 (선택 취소)
             this.$el.querySelector('input[type="file"]').value = '';
           } catch (error) {
-            alert('저장 실패: ' + error.message);
+            console.error("저장 실패:", error);
+            alert("저장 중 오류가 발생했습니다.");
           } finally {
             this.uploading = false;
           }
@@ -432,7 +422,6 @@
           try {
             let imageUrl = this.newPlace.imageUrl || '';
             if (this.selectedFile) {
-              // 새 이미지가 선택되었으면 업로드
               const storageRef = storage.ref(`images/${Date.now()}_${this.selectedFile.name}`);
               const snapshot = await storageRef.put(this.selectedFile);
               imageUrl = await snapshot.ref.getDownloadURL();
@@ -448,6 +437,7 @@
               mainRegion: this.selectedMainRegion,
               subRegion: this.selectedSubRegion
             });
+            await this.saveUserData();
             alert('수정 완료!');
             this.editIndex = null;
             this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
@@ -462,6 +452,7 @@
         deletePlace(index) {
           if (!confirm('삭제하시겠습니까?')) return;
           this.places.splice(index, 1);
+          this.saveUserData();
           if (this.editIndex === index) this.cancelEdit();
         },
         editPlace(index) {
