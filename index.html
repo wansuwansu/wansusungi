@@ -254,7 +254,7 @@
         places: [],
         editIndex: null,
         uploading: false,
-        selectedFile: null // 업로드할 파일 객체 보관
+        selectedFile: null
       },
       computed: {
         filteredPlaces() {
@@ -275,33 +275,41 @@
         }
       },
       methods: {
-        saveData() {
-          return userDataDocRef.set({
-            regions: this.regions,
-            places: this.places
-          });
+        async saveData() {
+          try {
+            await userDataDocRef.set({
+              regions: this.regions,
+              places: this.places
+            });
+          } catch (err) {
+            console.error("데이터 저장 실패:", err);
+          }
         },
-        addMainRegion() {
+        async addMainRegion() {
           if (!this.newMainRegion.trim()) return alert("메인 지역을 입력하세요.");
           if (this.regions.find(r => r.name === this.newMainRegion.trim())) {
             alert("이미 존재하는 메인 지역입니다.");
             return;
           }
           this.regions.push({ name: this.newMainRegion.trim(), subRegions: [] });
+          this.selectedMainRegion = this.newMainRegion.trim();
+          this.selectedSubRegion = null;
           this.newMainRegion = '';
-          this.saveData();
+          // Vue 반응성 강제 갱신
+          this.regions = [...this.regions];
+          await this.saveData();
         },
-        removeMainRegion(index) {
+        async removeMainRegion(index) {
           if (confirm("메인 지역을 삭제하면 관련 세부 지역 및 여행 기록도 모두 삭제됩니다. 삭제할까요?")) {
             const mainName = this.regions[index].name;
-            // 관련 여행 기록도 삭제
             this.places = this.places.filter(p => p.mainRegion !== mainName);
             this.regions.splice(index, 1);
+            this.regions = [...this.regions];
             if (this.selectedMainRegion === mainName) {
               this.selectedMainRegion = null;
               this.selectedSubRegion = null;
             }
-            this.saveData();
+            await this.saveData();
           }
         },
         selectMainRegion(name) {
@@ -312,7 +320,7 @@
           const main = this.regions.find(r => r.name === this.selectedMainRegion);
           return main ? main.subRegions : [];
         },
-        addSubRegion() {
+        async addSubRegion() {
           if (!this.newSubRegion.trim()) return alert("세부 지역을 입력하세요.");
           const main = this.regions.find(r => r.name === this.selectedMainRegion);
           if (main.subRegions.includes(this.newSubRegion.trim())) {
@@ -321,19 +329,24 @@
           }
           main.subRegions.push(this.newSubRegion.trim());
           this.newSubRegion = '';
-          this.saveData();
+          this.regions = [...this.regions];
+          await this.saveData();
         },
-        removeSubRegion(index) {
+        async removeSubRegion(index) {
           if (confirm("세부 지역을 삭제하면 관련 여행 기록도 모두 삭제됩니다. 삭제할까요?")) {
             const main = this.regions.find(r => r.name === this.selectedMainRegion);
             const subName = main.subRegions[index];
             this.places = this.places.filter(p => !(p.mainRegion === this.selectedMainRegion && p.subRegion === subName));
             main.subRegions.splice(index, 1);
+            this.regions = [...this.regions];
             if (this.selectedSubRegion === subName) {
               this.selectedSubRegion = null;
             }
-            this.saveData();
+            await this.saveData();
           }
+        },
+        selectSubRegion(sub) {
+          this.selectedSubRegion = sub;
         },
         onImageChange(e) {
           const file = e.target.files[0];
@@ -352,7 +365,6 @@
           return url;
         },
         clearFileInput() {
-          // input[type=file] 초기화
           const fileInput = this.$el.querySelector('input[type="file"]');
           if (fileInput) {
             fileInput.value = '';
@@ -405,8 +417,6 @@
           this.selectedFile = null;
           this.selectedMainRegion = p.mainRegion;
           this.selectedSubRegion = p.subRegion;
-
-          // input[type=file] 초기화
           this.clearFileInput();
         },
         async updatePlace() {
