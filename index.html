@@ -198,7 +198,7 @@
       <input type="file" @change="onImageChange" accept="image/*" />
 
       <div class="edit-buttons">
-        <button v-if="editIndex === null" @click="addPlace">저장하기</button>
+        <button v-if="editIndex === null" @click="addPlace" :disabled="uploading">{{ uploading ? '업로드 중...' : '저장하기' }}</button>
         <div v-else>
           <button @click="updatePlace">수정완료</button>
           <button @click="cancelEdit" style="background:#999;">취소</button>
@@ -208,7 +208,7 @@
 
     <!-- 여행기록 목록 -->
     <div class="record-list" v-if="places.length">
-      <div class="record-card" v-for="(place, index) in places" :key="place.id || index">
+      <div class="record-card" v-for="(place, index) in places" :key="index">
         <button class="delete-btn" @click="deletePlace(index)">삭제</button>
         <button class="edit-btn" @click="editPlace(index)">수정</button>
         <h3>📍 {{ place.name }}</h3>
@@ -223,22 +223,23 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
   <script>
+    // Firebase 초기화
     const firebaseConfig = {
       apiKey: "AIzaSyDpg4cuUisMyaOUXI8Mcg6bPBUvMbKfv00",
       authDomain: "wansu-e747d.firebaseapp.com",
       projectId: "wansu-e747d",
-      storageBucket: "wansu-e747d.firebasestorage.app",
+      storageBucket: "wansu-e747d.appspot.com",
       messagingSenderId: "634282664500",
       appId: "1:634282664500:web:947e65d59a06dd9698a061",
       measurementId: "G-JCDSG4XGN5"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-  </script>
+    const storage = firebase.storage();
 
-  <script>
     new Vue({
       el: '#app',
       data: {
@@ -255,58 +256,61 @@
           rating: 0
         },
         places: [],
-        editIndex: null
+        editIndex: null,
+        uploading: false
       },
       mounted() {
-        // Firestore에서 데이터 불러오기
-        db.collection('travelApp')
-          .orderBy('createdAt', 'desc')
-          .get()
-          .then(snapshot => {
-            const regionsMap = {};
-            const placesArr = [];
-
-            snapshot.forEach(doc => {
-              const data = doc.data();
-              data.id = doc.id;
-
-              // regionsMap 구조 : { mainRegionName: { name, subregions: Set } }
-              if (!regionsMap[data.mainRegion]) {
-                regionsMap[data.mainRegion] = { name: data.mainRegion, subregions: new Set() };
-              }
-              regionsMap[data.mainRegion].subregions.add(data.subRegion);
-
-              placesArr.push(data);
-            });
-
-            // regions 배열로 변환
-            this.regions = Object.values(regionsMap).map(r => ({
-              name: r.name,
-              subregions: Array.from(r.subregions)
-            }));
-
-            this.places = placesArr;
-
-            // 선택 기본값 지정
-            if (this.regions.length > 0) {
-              this.selectedMainRegion = this.regions[0].name;
-              this.selectedSubRegion = this.regions[0].subregions[0] || null;
-            }
-          })
-          .catch(error => {
-            console.error('Firestore 데이터 로드 실패:', error);
-          });
+        this.loadRegionsAndPlaces();
       },
       methods: {
-        saveData() {
-          // 로컬저장도 유지 (선택사항)
-          const data = {
-            regions: this.regions,
-            selectedMainRegion: this.selectedMainRegion,
-            selectedSubRegion: this.selectedSubRegion,
-            places: this.places
-          };
-          localStorage.setItem('travelDataV2', JSON.stringify(data));
+        async loadRegionsAndPlaces() {
+          // Firestore에서 regions와 places 모두 불러오기
+          try {
+            const snapshot = await db.collection("travelApp").get();
+            this.regions = [];
+            this.places = [];
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              // regions 배열에 추가 (중복 방지)
+              if (!this.regions.find(r => r.name === data.mainRegion)) {
+                this.regions.push({ name: data.mainRegion, subregions: [] });
+              }
+              // subregions에 추가
+              const region = this.regions.find(r => r.name === data.mainRegion);
+              if (region && data.subRegion && !region.subregions.includes(data.subRegion)) {
+                region.subregions.push(data.subRegion);
+              }
+              // places 배열에 추가
+              this.places.push({
+                id: doc.id,
+                name: data.name,
+                date: data.date,
+                review: data.review,
+                imageUrl: data.imageUrl,
+                rating: data.rating,
+                mainRegion: data.mainRegion,
+                subRegion: data.subRegion
+              });
+            });
+            // 선택 상태 초기화
+            if(this.regions.length) this.selectedMainRegion = this.regions[0].name;
+            if(this.selectedMainRegion) {
+              const firstRegion = this.regions.find(r => r.name === this.selectedMainRegion);
+              if(firstRegion && firstRegion.subregions.length) {
+                this.selectedSubRegion = firstRegion.subregions[0];
+              }
+            }
+            this.filterPlacesBySelection();
+          } catch (err) {
+            console.error("데이터 로드 실패:", err);
+          }
+        },
+        filterPlacesBySelection() {
+          if (!this.selectedMainRegion || !this.selectedSubRegion) {
+            this.places = [];
+            return;
+          }
+          this.places = this.places.filter(p => p.mainRegion === this.selectedMainRegion && p.subRegion === this.selectedSubRegion);
         },
         addMainRegion() {
           const name = this.newMainRegion.trim();
@@ -333,8 +337,8 @@
           }
           this.selectedMainRegion = name;
           this.selectedSubRegion = null;
-          this.places = [];
           this.editIndex = null;
+          this.filterPlacesBySelection();
         },
         getSubRegions() {
           const region = this.regions.find(r => r.name === this.selectedMainRegion);
@@ -364,84 +368,93 @@
             return;
           }
           this.selectedSubRegion = name;
-          this.places = [];
           this.editIndex = null;
+          this.filterPlacesBySelection();
         },
-        onImageChange(event) {
+        async onImageChange(event) {
           const file = event.target.files[0];
           if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            this.newPlace.imageUrl = e.target.result;
-          };
-          reader.readAsDataURL(file);
-        },
-        addPlace() {
-          const { name, date, review, rating } = this.newPlace;
-          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-
-          const newRecord = {
-            ...this.newPlace,
-            mainRegion: this.selectedMainRegion,
-            subRegion: this.selectedSubRegion,
-            createdAt: new Date().toISOString()
-          };
-
-          // Firestore에 저장
-          db.collection('travelApp').add(newRecord)
-            .then(docRef => {
-              newRecord.id = docRef.id;
-              this.places.unshift(newRecord);
-              this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-              alert('저장 완료!');
-            })
-            .catch(error => {
-              console.error('저장 실패:', error);
-              alert('저장에 실패했습니다.');
-            });
-        },
-        deletePlace(index) {
-          const place = this.places[index];
-          if (!place.id) {
-            this.places.splice(index, 1);
-            return;
+          this.uploading = true;
+          try {
+            // Storage 경로 예: images/유닉스타임_파일명
+            const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
+            const snapshot = await storageRef.put(file);
+            const downloadURL = await snapshot.ref.getDownloadURL();
+            this.newPlace.imageUrl = downloadURL;
+          } catch (error) {
+            alert("이미지 업로드 실패: " + error.message);
           }
-          if (confirm('정말 삭제하시겠습니까?')) {
-            db.collection('travelApp').doc(place.id).delete()
-              .then(() => {
-                this.places.splice(index, 1);
-                alert('삭제 완료');
-              })
-              .catch(err => {
-                console.error('삭제 실패:', err);
-                alert('삭제 실패');
-              });
+          this.uploading = false;
+        },
+        async addPlace() {
+          const { name, date, review, rating, imageUrl } = this.newPlace;
+          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
+          if (!this.selectedMainRegion || !this.selectedSubRegion) return alert('지역을 선택해 주세요.');
+
+          try {
+            // Firestore에 새 문서 추가
+            const docRef = await db.collection("travelApp").add({
+              name,
+              date,
+              review,
+              rating,
+              imageUrl,
+              mainRegion: this.selectedMainRegion,
+              subRegion: this.selectedSubRegion,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            // 로컬 places 배열에 추가
+            this.places.push({
+              id: docRef.id,
+              name, date, review, rating, imageUrl,
+              mainRegion: this.selectedMainRegion,
+              subRegion: this.selectedSubRegion
+            });
+            // 초기화
+            this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+          } catch (error) {
+            alert("여행기록 저장 실패: " + error.message);
+          }
+        },
+        async deletePlace(index) {
+          const place = this.places[index];
+          if (!confirm("삭제하시겠습니까?")) return;
+          try {
+            await db.collection("travelApp").doc(place.id).delete();
+            this.places.splice(index, 1);
+          } catch (error) {
+            alert("삭제 실패: " + error.message);
           }
         },
         editPlace(index) {
           const place = this.places[index];
           this.newPlace = { ...place };
           this.editIndex = index;
-          this.$nextTick(() => {
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-          });
+          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         },
-        updatePlace() {
+        async updatePlace() {
           if (this.editIndex === null) return;
-          const { name, date, review, rating, id } = this.newPlace;
+          const { name, date, review, rating, imageUrl } = this.newPlace;
           if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
-
-          db.collection('travelApp').doc(id).update({
-            name, date, review, rating, imageUrl: this.newPlace.imageUrl
-          }).then(() => {
-            this.$set(this.places, this.editIndex, { ...this.newPlace });
+          const place = this.places[this.editIndex];
+          try {
+            await db.collection("travelApp").doc(place.id).update({
+              name,
+              date,
+              review,
+              rating,
+              imageUrl,
+              mainRegion: this.selectedMainRegion,
+              subRegion: this.selectedSubRegion,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            // 로컬 데이터 갱신
+            this.$set(this.places, this.editIndex, { ...place, name, date, review, rating, imageUrl });
             this.editIndex = null;
             this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
-            alert('수정 완료');
-          }).catch(err => {
-            console.error('수정 실패:', err);
-            alert('수정 실패');
-          });
+          } catch (error) {
+            alert("수정 실패: " + error.message);
+          }
         },
         cancelEdit() {
           this.editIndex = null;
