@@ -368,6 +368,7 @@
         },
         onImageChange(event) {
           this.selectedFile = event.target.files[0] || null;
+          console.log("Selected file:", this.selectedFile);
         },
         async addPlace() {
           if (this.uploading) return;
@@ -383,9 +384,12 @@
           this.uploading = true;
           try {
             if (this.selectedFile) {
+              console.log("Uploading file:", this.selectedFile.name);
               const storageRef = storage.ref(`images/${Date.now()}_${this.selectedFile.name}`);
               const snapshot = await storageRef.put(this.selectedFile);
+              console.log("Upload snapshot:", snapshot);
               const downloadURL = await snapshot.ref.getDownloadURL();
+              console.log("Download URL:", downloadURL);
               this.newPlace.imageUrl = downloadURL;
             }
             this.places.push({
@@ -422,9 +426,12 @@
           try {
             let imageUrl = this.newPlace.imageUrl || '';
             if (this.selectedFile) {
+              console.log("Uploading file:", this.selectedFile.name);
               const storageRef = storage.ref(`images/${Date.now()}_${this.selectedFile.name}`);
               const snapshot = await storageRef.put(this.selectedFile);
+              console.log("Upload snapshot:", snapshot);
               imageUrl = await snapshot.ref.getDownloadURL();
+              console.log("Download URL:", imageUrl);
             }
             const place = this.places[this.editIndex];
             this.$set(this.places, this.editIndex, {
@@ -462,7 +469,7 @@
           this.newPlace = { ...place };
           this.selectedFile = null;
           this.$el.querySelector('input[type="file"]').value = '';
-          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+           window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         },
         cancelEdit() {
           this.editIndex = null;
