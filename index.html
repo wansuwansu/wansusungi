@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic&display=swap" rel="stylesheet" />
   <style>
-    /* 기존 스타일 유지 */
+    /* 기존 스타일 유지 (생략 가능) */
     body {
       font-family: 'Nanum Gothic', sans-serif;
       background: #fff0f5;
@@ -146,10 +146,61 @@
 <body>
   <div id="app" class="container">
     <h1>완수♥성지 완성데이트</h1>
-    <!-- 동일한 HTML 구조 -->
-    <!-- 여행기록 목록 수정 -->
-    <div class="record-list" v-if="currentPlaceList.length">
-      <div class="record-card" v-for="(place, index) in currentPlaceList" :key="index">
+
+    <!-- 메인지역 추가 -->
+    <div>
+      <input type="text" v-model="newMainRegion" placeholder="메인지역 추가" />
+      <button @click="addMainRegion">추가</button>
+    </div>
+
+    <ul class="region-list">
+      <li v-for="(region, i) in regions" :key="i" 
+          :class="{selected: region.name === selectedMainRegion}"
+          @click="selectMainRegion(region.name)">
+        {{ region.name }}
+        <button @click.stop="removeMainRegion(i)">X</button>
+      </li>
+    </ul>
+
+    <!-- 세부지역 추가 -->
+    <div v-if="selectedMainRegion">
+      <input type="text" v-model="newSubRegion" placeholder="세부지역 추가" />
+      <button @click="addSubRegion">추가</button>
+    </div>
+
+    <ul class="subregion-list" v-if="selectedMainRegion">
+      <li v-for="(sub, i) in getSubRegions()" :key="i"
+          :class="{selected: sub === selectedSubRegion}"
+          @click="selectSubRegion(sub)">
+        {{ sub }}
+        <button @click.stop="removeSubRegion(i)">X</button>
+      </li>
+    </ul>
+
+    <!-- 여행기록 입력폼 -->
+    <div v-if="selectedMainRegion && selectedSubRegion" style="margin-top:20px;">
+      <input type="text" v-model="newPlace.name" placeholder="여행지명" />
+      <input type="date" v-model="newPlace.date" />
+      <textarea v-model="newPlace.review" placeholder="한줄평"></textarea>
+
+      <div class="star-rating">
+        <span v-for="starIndex in 5" :key="starIndex" class="star"
+          :class="{filled: starIndex <= newPlace.rating}"
+          @click="newPlace.rating = starIndex">★</span>
+      </div>
+
+      <input type="file" @change="onImageChange" accept="image/*" />
+
+      <div style="margin-top:10px;">
+        <button v-if="editIndex === null" @click="addPlace">저장</button>
+        <button v-else @click="updatePlace">수정완료</button>
+        <button v-if="editIndex !== null" @click="cancelEdit">취소</button>
+      </div>
+    </div>
+
+    <!-- 여행기록 리스트 -->
+    <div class="record-list" v-if="filteredPlaces.length">
+      <div class="record-card" v-for="(place, index) in filteredPlaces" :key="index">
         <button class="delete-btn" @click="deletePlace(index)">삭제</button>
         <button class="edit-btn" @click="editPlace(index)">수정</button>
         <h3>📍 {{ place.name }}</h3>
@@ -160,11 +211,199 @@
       </div>
     </div>
   </div>
-  <script type="module">
-    // Vue 앱 내부 data에서 regions 배열의 각 subregion마다 places를 포함하도록 구조 수정
-    // 여행기록 저장 시 regions 내부로 삽입되도록 수정
-    // computed로 currentPlaceList 반환
-    // 삭제, 수정, 추가 모두 regions[selectedMainRegion].placesBySubregion[selectedSubRegion]를 기준으로 수행
+
+  <!-- Firebase SDK 추가 -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDpg4cuUisMyaOUXI8Mcg6bPBUvMbKfv00",
+      authDomain: "wansu-e747d.firebaseapp.com",
+      projectId: "wansu-e747d",
+      storageBucket: "wansu-e747d.firebasestorage.app",
+      messagingSenderId: "634282664500",
+      appId: "1:634282664500:web:947e65d59a06dd9698a061",
+      measurementId: "G-JCDSG4XGN5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        regions: [],
+        newMainRegion: '',
+        selectedMainRegion: null,
+        newSubRegion: '',
+        selectedSubRegion: null,
+        newPlace: {
+          name: '', date: '', review: '', imageUrl: '', rating: 0
+        },
+        places: [],
+        editIndex: null
+      },
+      computed: {
+        filteredPlaces() {
+          if (!this.selectedMainRegion || !this.selectedSubRegion) return [];
+          return this.places.filter(p =>
+            p.mainRegion === this.selectedMainRegion &&
+            p.subRegion === this.selectedSubRegion
+          );
+        }
+      },
+      mounted() {
+        // Firebase에서 데이터 불러오기
+        db.collection("travelRecords")
+          .orderBy("createdAt", "desc")
+          .get()
+          .then(querySnapshot => {
+            this.regions = [];
+            this.places = [];
+            querySnapshot.forEach(doc => {
+              const data = doc.data();
+
+              // regions 배열에 mainRegion/subRegion 넣기 (중복 방지)
+              let main = this.regions.find(r => r.name === data.mainRegion);
+              if (!main) {
+                main = { name: data.mainRegion, subregions: [] };
+                this.regions.push(main);
+              }
+              if (!main.subregions.includes(data.subRegion)) {
+                main.subregions.push(data.subRegion);
+              }
+
+              this.places.push(data);
+            });
+
+            // 선택 기본값 설정
+            if (this.regions.length > 0) {
+              this.selectedMainRegion = this.regions[0].name;
+              this.selectedSubRegion = this.regions[0].subregions[0] || null;
+            }
+          })
+          .catch(error => console.error("데이터 불러오기 실패:", error));
+      },
+      methods: {
+        saveData() {
+          const data = {
+            regions: this.regions,
+            selectedMainRegion: this.selectedMainRegion,
+            selectedSubRegion: this.selectedSubRegion,
+            places: this.places
+          };
+          localStorage.setItem('travelDataV2', JSON.stringify(data));
+        },
+        addMainRegion() {
+          const name = this.newMainRegion.trim();
+          if (!name || this.regions.find(r => r.name === name)) return alert('중복된 지역 또는 빈 입력입니다.');
+          this.regions.push({ name, subregions: [] });
+          this.newMainRegion = '';
+        },
+        removeMainRegion(index) {
+          if (this.regions[index].name === this.selectedMainRegion) {
+            this.selectedMainRegion = null;
+            this.selectedSubRegion = null;
+            this.places = [];
+            this.editIndex = null;
+          }
+          this.regions.splice(index, 1);
+        },
+        selectMainRegion(name) {
+          if (this.selectedMainRegion === name) {
+            this.selectedMainRegion = null;
+            this.selectedSubRegion = null;
+            this.places = [];
+            this.editIndex = null;
+            return;
+          }
+          this.selectedMainRegion = name;
+          this.selectedSubRegion = null;
+          this.editIndex = null;
+        },
+        getSubRegions() {
+          const region = this.regions.find(r => r.name === this.selectedMainRegion);
+          return region ? region.subregions : [];
+        },
+        addSubRegion() {
+          const name = this.newSubRegion.trim();
+          const region = this.regions.find(r => r.name === this.selectedMainRegion);
+          if (!name || region.subregions.includes(name)) return alert('중복된 세부 지역 또는 빈 입력입니다.');
+          region.subregions.push(name);
+          this.newSubRegion = '';
+        },
+        removeSubRegion(index) {
+          const region = this.regions.find(r => r.name === this.selectedMainRegion);
+          const removed = region.subregions.splice(index, 1);
+          if (this.selectedSubRegion === removed[0]) {
+            this.selectedSubRegion = null;
+            this.places = [];
+            this.editIndex = null;
+          }
+        },
+        selectSubRegion(name) {
+          if (this.selectedSubRegion === name) {
+            this.selectedSubRegion = null;
+            this.editIndex = null;
+            return;
+          }
+          this.selectedSubRegion = name;
+          this.editIndex = null;
+        },
+        onImageChange(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            this.newPlace.imageUrl = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        },
+        addPlace() {
+          const { name, date, review, rating } = this.newPlace;
+          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
+          const newRecord = {
+            ...this.newPlace,
+            mainRegion: this.selectedMainRegion,
+            subRegion: this.selectedSubRegion,
+            createdAt: new Date().toISOString()
+          };
+          this.places.unshift(newRecord);
+          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+
+          db.collection("travelRecords").add(newRecord)
+            .then(() => console.log("Firebase 저장 완료"))
+            .catch((error) => console.error("Firebase 저장 실패:", error));
+        },
+        deletePlace(index) {
+          if(this.editIndex === index) this.editIndex = null;
+          this.places.splice(index, 1);
+          // 참고: Firestore 삭제는 구현 필요
+        },
+        editPlace(index) {
+          const place = this.places[index];
+          this.newPlace = { ...place };
+          this.editIndex = index;
+          this.$nextTick(() => {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+          });
+        },
+        updatePlace() {
+          if (this.editIndex === null) return;
+          const { name, date, review, rating } = this.newPlace;
+          if (!name || !date || !review || rating === 0) return alert('모든 필드를 입력해 주세요! 별점도 꼭 선택해야 합니다.');
+          this.$set(this.places, this.editIndex, { ...this.newPlace });
+          this.editIndex = null;
+          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+          // 참고: Firestore 업데이트는 구현 필요
+        },
+        cancelEdit() {
+          this.editIndex = null;
+          this.newPlace = { name: '', date: '', review: '', imageUrl: '', rating: 0 };
+        }
+      }
+    });
   </script>
 </body>
 </html>
